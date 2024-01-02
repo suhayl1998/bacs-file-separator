@@ -1,9 +1,14 @@
 from io import StringIO
-from zipfile import ZipFile
 import streamlit as st
 
 HEADER = 4
 FOOTER = 5
+
+# BACS File constants
+AMOUNT_START = 35
+AMOUNT_END = 46
+REF_START = 64
+REF_END = 82
 
 def section_bacs_file(uploaded_file):
     file = StringIO(uploaded_file.getvalue().decode("utf-8")).read()
@@ -13,6 +18,19 @@ def section_bacs_file(uploaded_file):
     middle = full_file[HEADER:-FOOTER]
     return header, footer, middle
 
+def change_line(new_ref, line):
+    new_ref_length = len(new_ref)
+    pad_length = REF_END - REF_START - new_ref_length
+    padded_ref = new_ref + (" " * pad_length)
+    return line[:REF_START] + padded_ref + line[REF_END:]
+
+def change_payment_ref(new_ref, payment_lines):
+    if len(new_ref) >= REF_END - REF_START:
+        st.write("Please ensure your reference is under 18 characters.")
+        return payment_lines
+    else:
+        st.write(f"Payment reference changed to '{new_ref}'.")
+        return [change_line(new_ref, line) for line in payment_lines]
 
 # amounts = {line[82:100].strip():float(line[35:46])/100 for line in middle}
 def create_batches(middle, threshold):
@@ -25,19 +43,23 @@ def create_batches(middle, threshold):
             batch.append(line)
             batch_sum += amount
         else:
-            batches.append(batch)
+            batches.append((batch, batch_sum))
             batch = [line]
             batch_sum = amount
-    batches.append(batch)
+    batches.append((batch, batch_sum))
     return batches
 
 def create_output_files(batches, header, footer, initial_file):
-    for i, batch in enumerate(batches):
+    for i, (batch, batch_sum) in enumerate(batches):
         file_name = f"{initial_file.split('.')[0]} - Batch {i+1}.txt"
         full_batch = header + batch + footer
         with st.container(border = True):
-            st.write(file_name)
-            st.download_button("Download File",'\n'.join(str(i) for i in full_batch), file_name)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write(file_name)
+                st.download_button("Download File",'\n'.join(str(i) for i in full_batch), file_name)
+            with col2:
+                st.write(f"£{round(batch_sum, 2)}")
 
 
 

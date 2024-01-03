@@ -10,5 +10,5 @@ if uploaded_file is not None:
     header, footer, middle = section_bacs_file(uploaded_file)
     middle = change_payment_ref(pay_ref, middle)
     batches = create_batches(middle, threshold)
-    create_output_files(batches, header, footer, uploaded_file.name)
+    create_output_files(batches, header, footer, uploaded_file.name, pay_ref)
 
